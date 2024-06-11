@@ -25,7 +25,7 @@ class Shot_Detector:
             display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (ball_pos or hoop_pos)
     '''
 
-    def __init__(self, source, output_path, detection_fps=1, display_object_info=True):
+    def __init__(self, source, output_path, detection_fps=30, display_object_info=True):
         
         self.model = YOLO("/Users/josephattalla/bball_ai/Basketball-Shot-Detection/bbal_model_method_1.pt")
 
@@ -57,8 +57,8 @@ class Shot_Detector:
         frame_width = int(self.source.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(self.source.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # get the amount of frames to skip to detect at parameter detection fps
-        if self.detection_fps > fps: step = fps
+        # get the amount of fps to detect given from parameter detection fps
+        if self.detection_fps < 1: step = fps
         else: step = int(fps / self.detection_fps)
 
         # Define the codec and create VideoWriter object
@@ -79,7 +79,7 @@ class Shot_Detector:
             self.frame_count += 1
 
             # detect only frames that are divisible by step or if detection_fps < 2
-            if self.detection_fps < 2 or self.frame_count % step == 0:
+            if self.detection_fps >= fps or self.frame_count % step == 0:
                 
                 # clean lists
                 self.clean_pos()  
