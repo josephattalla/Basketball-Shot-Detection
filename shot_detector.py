@@ -25,9 +25,11 @@ class Shot_Detector:
             display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (ball_pos or hoop_pos)
     '''
 
-    def __init__(self, source, model_path, output_path, detection_fps=1, display_object_info=False):
+    def __init__(self, source, output_path, detection_fps=1, display_object_info=False):
+        
+        self.model = YOLO("/Users/josephattalla/bball_ai/Basketball-Shot-Detection/bbal_model_method_1.pt")
 
-        self.model = YOLO(model_path)
+
         self.source = cv2.VideoCapture(source)
         self.output_path = output_path
         self.display_object_info = display_object_info
@@ -55,8 +57,9 @@ class Shot_Detector:
         frame_width = int(self.source.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(self.source.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # get the amount of frames to skip to detect 5 fps
-        step = int(fps / self.detection_fps)
+        # get the amount of frames to skip to detect at parameter detection fps
+        if self.detection_fps > fps: step = fps
+        else: step = int(fps / self.detection_fps)
 
         # Define the codec and create VideoWriter object
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Use 'mp4v' codec for MP4 format
@@ -77,12 +80,13 @@ class Shot_Detector:
 
             # detect only frames that are divisible by step or if detection_fps < 2
             if self.detection_fps < 2 or self.frame_count % step == 0:
-
+                
                 # clean lists
                 self.clean_pos()  
                 
                 # get detections
                 results = self.model.predict(frame, conf=0.2, stream=True)
+                class_names = self.model.names
                 for r in results:
                     for box in r.boxes:
 
@@ -94,6 +98,7 @@ class Shot_Detector:
                         w, h = x2 - x1, y2 - y1
                         center = (int(x1 + w / 2), int(y1 + h / 2))
                         cls = int(box.cls[0].tolist())
+                        cls_name = class_names[cls]
                         conf = int(box.conf[0].tolist()*100) / 100
 
                         # dictionary with the information of the position and frame of the object
@@ -105,10 +110,6 @@ class Shot_Detector:
                         # else the object is a ball, add the position of the ball using add_ball
                         else:
                             index = self.add_ball(pos)
-                            # put the center of the ball from previous frames
-                            #if index != None:
-                            #    for i in range(len(self.ball_pos[index])):
-                            #        cv2.circle(frame, (self.ball_pos[index][i]['x'], self.ball_pos[index][i]['y']), 2, (0, 0, 255), 2)
 
                         # if the detection was not added to the positions
                         if index == None:
@@ -118,11 +119,12 @@ class Shot_Detector:
                         self.detect_up()
                         self.detect_down()
                         self.update_score()
+                                                
                         
                         # displays a detected objects index in its list of positions (ball_pos or hoop_pos)] and its class and conf
                         if self.display_object_info:
                             font = cv2.FONT_HERSHEY_SIMPLEX
-                            text = f"INDEX: {index}, CLASS: {cls}, CONF: {conf}"
+                            text = f"INDEX: {index}, CLASS: {cls_name}, CONF: {conf}"
                             text_size, _ = cv2.getTextSize(text, font, 0.5, 1)
                             text_x = x1 + (x2 - x1) // 2 - text_size[0] // 2
                             text_y = y1 - 5
@@ -137,9 +139,8 @@ class Shot_Detector:
                             cv2.rectangle(frame, (background_x1, background_y1), (background_x2, background_y2), (0, 0, 0), -1)
                             cv2.putText(frame, text, (text_x, text_y), font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
                         
-                        # Draw rectangle around the object and dot in center
+                        # Draw rectangle around the object 
                         frame = cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
-                        frame = cv2.circle(frame, center, radius=5, color=(0, 0, 255), thickness=-1)
 
                         # display makes/attempts and make percentage
                         percent = 0 if self.attempts == 0 else self.makes / self.attempts * 100
@@ -471,15 +472,4 @@ class Shot_Detector:
             if x1 < pos['x'] < x2 and y2 < pos['y'] < y1:
                 return True
 
-        return False 
-
-#Shot_Detector('T:\Shot-Neural-Network\data\make\make16.mp4', r'T:\Shot-Neural-Network\models\last_model_4.pt')
-#Shot_Detector('T:\Shot-Neural-Network\data\make\IMG_9507 4.mov', r'T:\Shot-Neural-Network\models\last_model_4.pt')
-#Shot_Detector(r'T:\Shot-Neural-Network\data\make\IMG_9507 9.mov', r'T:\Shot-Neural-Network\models\last_model_4.pt', 'long_make')
-#Shot_Detector(r'T:\Shot-Neural-Network\data\make\IMG_9507 4.mov', r'T:\Shot-Neural-Network\models\last_model_4.pt', 'make_4')
-#Shot_Detector(r'T:\Shot-Neural-Network\data\miss\IMG_9507 2.mov', r'T:\Shot-Neural-Network\models\last_model_4.pt', 'miss_2')
-#Shot_Detector(r'T:\Shot-Neural-Network\tracking\full_video.MOV', r'T:\Shot-Neural-Network\models\last_model_4.pt', 'full_video', display_object_info=True)
-#Shot_Detector(r'T:\Shot-Neural-Network\tracking\full_video_2.MOV', r'T:\Shot-Neural-Network\models\last_model_4.pt', 'full_video_2')
-#Shot_Detector(r'T:\Shot-Neural-Network\tracking\full_video_3.MOV', r'T:\Shot-Neural-Network\models\last_model_4.pt', 'full_video_3')
-#Shot_Detector(r'T:\Shot-Neural-Network\tracking\2_hoop_1.MOV', r'T:\Shot-Neural-Network\models\last_model_4.pt', '2_hoop_1').run()
-Shot_Detector(r'T:\Shot-Neural-Network\tracking\2_hoop_2.MOV', r'T:\Shot-Neural-Network\models\last_model_4.pt', '2_hoop_2').run()
+        return False
