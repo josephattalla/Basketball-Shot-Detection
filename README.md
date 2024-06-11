@@ -22,7 +22,7 @@ Instantiate the `Shot_Detector` class with the necessary parameters:
 - `detection_fps`: Number of frames per second to process for object detection.
 - `display_object_info`: Boolean flag to display information about detected objects.
 
-`Shot_Detector` returns makes, attempts
+Use the `.run()` method to run the detection algorithm, and it will return the makes and attempts detected.
 
 ### Example
 
