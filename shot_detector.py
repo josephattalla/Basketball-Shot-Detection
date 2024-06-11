@@ -259,8 +259,8 @@ class Shot_Detector:
         for i, ball in enumerate(self.ball_pos):   
 
             # if the ball has a position already detected in the current frame, continue
-            if ball[-1]['frame'] == self.frame_count:
-                continue
+            # if ball[-1]['frame'] == self.frame_count:
+            #    continue
 
             # get coordinates of the center of the ball from the last frame
             x_, y_ = ball[-1]['x'], ball[-1]['y']
