@@ -33,3 +33,7 @@ detector = Shot_Detector(source="path/to/video.mp4", output_path="path/to/output
 makes, attempts = detector.run()
 print(f"Successful shots: {makes}/{attempts}")
 ```
+
+## Algorithm Details
+
+The algorithm used to detect shots and makes was inspired by https://github.com/avishah3/AI-Basketball-Shot-Detection-Tracker
