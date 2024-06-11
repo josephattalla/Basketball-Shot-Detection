@@ -62,11 +62,11 @@ This plot shows the execution time and accuracy at 30, 15, 5 `detection_fps`. Ea
 
 ## Example Output
 
-https://github.com/josephattalla/Basketball-Shot-Detection/assets/121779512/408ff385-76fe-4d37-8401-0d91c677f910
+https://github.com/josephattalla/Basketball-Shot-Detection/assets/121779512/0e18408a-1be4-46b9-bd21-09b5b5d00f2d
 
 ## Conclusion
 
-I learned a lot of valuable lessons in this project. When I first started, I used many different neural network models such as CNN, RCNN, masked RCNN, but found no success with any of them. After some research I found a much better approach than just pushing data into neural networks and hoping it will learn from them, but rather utilizing machine learning to gain insights about the data and using those insights to make inderences about what has happened.
+I learned a lot of valuable lessons in this project. When I first started, I used many different neural network models such as CNN, RCNN, masked RCNN, but found no success with any of them. After some research I found a much better approach than just pushing data into neural networks and hoping it will learn from them, but rather utilizing machine learning to gain insights about the data and using those insights to make inferences about what has happened. I also learned how to take a concept and create a solution that isn't just functional but also highly usable and efficient.
 
 
 
