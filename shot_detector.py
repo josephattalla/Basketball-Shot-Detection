@@ -25,9 +25,9 @@ class Shot_Detector:
             display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (ball_pos or hoop_pos)
     '''
 
-    def __init__(self, source, output_path, detection_fps=30, display_object_info=True):
+    def __init__(self, source, output_path=None, detection_fps=30, display_object_info=True):
         
-        self.model = YOLO("/Users/josephattalla/bball_ai/Basketball-Shot-Detection/bbal_model_method_1.pt")
+        self.model = YOLO("./bball_model.pt")
 
 
         self.source = cv2.VideoCapture(source)
@@ -63,7 +63,7 @@ class Shot_Detector:
 
         # Define the codec and create VideoWriter object
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Use 'mp4v' codec for MP4 format
-        out = cv2.VideoWriter(f'{self.output_path}.mp4', fourcc, fps, (frame_width, frame_height))
+        if self.output_path != None: out = cv2.VideoWriter(f'{self.output_path}.mp4', fourcc, fps, (frame_width, frame_height))
 
         # loop through video
         while True:
@@ -174,10 +174,10 @@ class Shot_Detector:
                             print(i)
                         print()'''
                     
-                    out.write(frame)
-                            
+                    if self.output_path != None: out.write(frame)
+                   
         self.source.release()
-        out.release()
+        if self.output_path != None: out.release()
 
         return self.makes, self.attempts
 
