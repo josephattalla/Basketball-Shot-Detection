@@ -25,7 +25,7 @@ class Shot_Detector:
             display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (ball_pos or hoop_pos)
     '''
 
-    def __init__(self, source, output_path, detection_fps=1, display_object_info=False):
+    def __init__(self, source, output_path, detection_fps=1, display_object_info=True):
         
         self.model = YOLO("/Users/josephattalla/bball_ai/Basketball-Shot-Detection/bbal_model_method_1.pt")
 
