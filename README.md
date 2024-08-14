@@ -19,8 +19,10 @@ Instantiate the `Shot_Detector` class with the necessary parameters:
 
 - `source`: Path to the video source.
 - `output_path`: Path to save the resulting video.
-- `detection_fps`: Number of frames per second to process for object detection.
+- `step`: Process every step frame.
 - `display_object_info`: Boolean flag to display information about detected objects.
+- `model`: Path to YOLO detection model.
+- `verbose`: YOLO verbose parameter
 
 Use the `.run()` method to run the detection algorithm, and it will return the makes and attempts detected.
 
@@ -29,7 +31,7 @@ Use the `.run()` method to run the detection algorithm, and it will return the m
 ```python
 from shot_detector import Shot_Detector
 
-detector = Shot_Detector(source="path/to/video.mp4", output_path="path/to/output", detection_fps=30, display_object_info=True)
+detector = Shot_Detector(source="path/to/video.mp4", output_path="path/to/output", step=1, display_object_info=True, model="path/to/detection.pt", verbose=False)
 makes, attempts = detector.run()
 print(f"Successful shots: {makes}/{attempts}")
 ```
@@ -40,25 +42,27 @@ The algorithm used to detect shots and makes was inspired by https://github.com/
 
 ### Object Detection
 
-I used universe.roboflow.com to find a dataset that contained basketball and hoop detections and trained a YOLOv8 model on this dataset.
+The algorithm employs YOLOv8 to detect basketballs and hoops. The detection model is trained on a dataset containing basketball and hoop detections obtained from universe.roboflow.com. The object detection model identifies hoops and balls in each frame of the video.
 
 ### Ball and Hoop Tracking
 
-To track multiple balls and hoops in a video feed, I created a list that contained a lists of dictionaries for each sepereate ball/hoop detected. Each dictionary contained information about the detection of the object detected: center of the object, frame it was detected, and the confidence of the detection. To determine if a detection belonged with an already detected ball/hoop, the euclidian distance between the center of the currently detected object and the last frame of the already detected objected. For balls, if this distance was less than 2 * hypotenuse of previous detections box size, or if the ball was in the hoop area, less than 4 * hypotenuse of previous detections box, then it is added to that balls list. For hoops the process is the same, except the hypotenuse is not multiplied by a factor. This is because balls can move more distance between frames than hoops should, furthermore balls can sometimes not be detected when it is shot and around the rim, which is why the scaling is more when a ball is around the hoop area.
+To track multiple balls and hoops, two classes are used: DetectedObject and DetectedBall. The DetectedObject class holds information about each detected object, including its center, size, and confidence. The DetectedBall class extends this functionality to manage multiple detections of the same ball.
+
+Objects are tracked based on the Euclidean distance between their centers. For balls, if this distance is less than 2 times the hypotenuse of the previous detection's bounding box or if the ball is in the hoop area with a confidence greater than 0.3, it is considered the same ball. For hoops, the distance check is not scaled because hoops are expected to be more stable compared to balls.
 
 ### Shot Detection
 
-When a ball is detected around the area of a hoop, the ball and hoop is added to a list called `up_ball`, and a shot attempt is added. Once a ball in the `up_ball` list is detected to be below the hoop it is associated with, a line is created with the position of the ball before it was below the rim, and the first position it is below the rim. If the line goes between the ends of the rim a make is added, else a make is not added. See https://github.com/avishah3/AI-Basketball-Shot-Detection-Tracker for a visualization of this algorithm.
+The algorithm determines shot attempts by detecting if a ball is in the hoop's backboard area. The ball-hoop pair is added to the `up_ball` list if the ball is detected within the hoop's backboard area. Once a ball from this list is detected below the hoop, a line is calculated from the last detection above the hoop to the first detection below the hoop. If this line goes between the rim, the shot is considered a make.
 
 ### Efficiency
 
-Each frame takes a significant time to be put through the object detection model, so to decrease execution time I added a `detection_fps` parameter. This parameter control how many frames a second is ran through the algorithm. Choosing a low `detection_fps` such as 5 will significantly decrease runtime, but will also decrease accuracy. 
+To optimize execution time, the `step` parameter controls how frequently frames are processed. Lower values of `step` result in fewer frames being processed, which decreases runtime but may also affect accuracy.
 
 ## Accuracy
 
-![](plot.png)
+![Accuracy & Execution Time vs Step](plot.png)
 
-This plot shows the execution time and accuracy at 30, 15, 5 `detection_fps`. Each was tested on 67 individual shot clips. Decreasing the `detection_fps` to 15 significantly decreases execution time, while slightly increasing accuracy.
+This plot shows the execution time and accuracy with `step` set at 1, 2, and 6. Each was tested on 67 individual shot clips. Increase the `step` to 2 significantly decreases execution time, while slightly increasing accuracy.
 
 ## Example Output
 
@@ -67,7 +71,3 @@ https://github.com/josephattalla/Basketball-Shot-Detection/assets/121779512/0e18
 ## Conclusion
 
 I learned a lot of valuable lessons in this project. When I first started, I used many different neural network models such as CNN, RCNN, masked RCNN, but found no success with any of them. After some research I found a much better approach than just pushing data into neural networks and hoping it will learn from them, but rather utilizing machine learning to gain insights about the data and using those insights to make inferences about what has happened. I also learned how to take a concept and create a solution that isn't just functional but also highly usable and efficient.
-
-
-
-
