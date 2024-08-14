@@ -26,7 +26,7 @@ class Shot_Detector:
             display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (balls or hoops)
     '''
 
-    def __init__(self, source, output_path=None, detection_fps=30, display_object_info=True):
+    def __init__(self, source, output_path=None, step=1, display_object_info=True):
         
         self.model = YOLO("./bball_model.pt")
 
@@ -34,7 +34,7 @@ class Shot_Detector:
         self.source = cv2.VideoCapture(source)
         self.output_path = output_path
         self.display_object_info = display_object_info
-        self.detection_fps = detection_fps
+        self.step = step
 
         # lists of each class. Each list contains a list, representing a detected object, with dictionaries representing the positions of that object: {'x' : center[0], 'y' : center[1], 'w' : w, 'h' : h, 'frame' : self.frame_count, 'conf' : conf}
         self.hoops = {}
@@ -59,10 +59,6 @@ class Shot_Detector:
         frame_width = int(self.source.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(self.source.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # get the amount of fps to detect given from parameter detection fps
-        if self.detection_fps < 1: step = fps
-        else: step = int(fps / self.detection_fps)
-
         # Define the codec and create VideoWriter object
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Use 'mp4v' codec for MP4 format
         if self.output_path != None: out = cv2.VideoWriter(f'{self.output_path}.mp4', fourcc, fps, (frame_width, frame_height))
@@ -81,7 +77,7 @@ class Shot_Detector:
             self.frame_count += 1
 
             # detect only frames that are divisible by step or if detection_fps < 2
-            if self.detection_fps >= fps or self.frame_count % step == 0:
+            if self.frame_count % self.step == 0:
                 
                 # clean lists
                 self.clean_pos()  
