@@ -64,7 +64,9 @@ To optimize execution time, the `step` parameter controls how frequently frames 
 
 This plot shows the execution time and accuracy with `step` set at 1, 2, and 6. Each was tested on 67 individual shot clips. Increasing the `step` to 2 significantly decreases execution time, while slightly increasing accuracy.
 
-## Example Output *step=2*
+## Example Output
+
+*ran with `step = 2`*
 
 https://github.com/josephattalla/Basketball-Shot-Detection/assets/121779512/0e18408a-1be4-46b9-bd21-09b5b5d00f2d
 
