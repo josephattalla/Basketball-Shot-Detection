@@ -62,7 +62,7 @@ To optimize execution time, the `step` parameter controls how frequently frames 
 
 ![Accuracy & Execution Time vs Step](plot.png)
 
-This plot shows the execution time and accuracy with `step` set at 1, 2, and 6. Each was tested on 67 individual shot clips. Increase the `step` to 2 significantly decreases execution time, while slightly increasing accuracy.
+This plot shows the execution time and accuracy with `step` set at 1, 2, and 6. Each was tested on 67 individual shot clips. Increasing the `step` to 2 significantly decreases execution time, while slightly increasing accuracy.
 
 ## Example Output
 
