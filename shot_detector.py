@@ -13,7 +13,7 @@ class Shot_Detector:
 
             output_path - path to put the resulting video
 
-            step - int, used to detect only frames that are divisible by step or if detection_fps < 2
+            step - detect every step frames
 
             display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (balls or hoops)
 
