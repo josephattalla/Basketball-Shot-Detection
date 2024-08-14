@@ -18,12 +18,14 @@ class Shot_Detector:
             display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (balls or hoops)
 
             model - path of a yolo object detection model
+
+            verbose - YOLO verbose parameter
     '''
 
-    def __init__(self, source: str, output_path: str | None = None, step: int = 1, display_object_info: bool = True, model: str = './bball_model.pt') -> None:
+    def __init__(self, source: str, output_path: str | None = None, step: int = 1, display_object_info: bool = True, model: str = './bball_model.pt', verbose: bool = False) -> None:
 
         # SET PARAMETERS
-        self.model = YOLO(model)
+        self.model = YOLO(model, verbose=self.verbose)
         self.source = cv2.VideoCapture(source)
         self.output_path = output_path
         self.display_object_info = display_object_info
@@ -73,7 +75,7 @@ class Shot_Detector:
                 self.clean_detections()  
 
                 # DETECT OBJECTS
-                results = self.model.predict(frame, conf=0.2, stream=True)
+                results = self.model.predict(frame, conf=0.2, stream=True, verbose=self.verbose)
                 class_names = self.model.names
                 for r in results:
                     for box in r.boxes:
