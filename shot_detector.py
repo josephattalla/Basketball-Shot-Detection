@@ -37,7 +37,8 @@ class Shot_Detector:
         self.detection_fps = detection_fps
 
         # lists of each class. Each list contains a list, representing a detected object, with dictionaries representing the positions of that object: {'x' : center[0], 'y' : center[1], 'w' : w, 'h' : h, 'frame' : self.frame_count, 'conf' : conf}
-        self.hoops = []
+        self.hoops = {}
+        self.hoopUid = 0
         self.balls = []
 
         self.frame_count = 0
@@ -201,14 +202,15 @@ class Shot_Detector:
 
         # if this is the first detected hoop, append the current position in a list
         if len(self.hoops) < 1:
-            self.hoops.append(hoop)
+            self.hoops[self.hoopUid] = hoop
+            self.hoopUid += 1
             return 0
         
         # get the coordinates of the center of the hoop
         x, y = hoop.x, hoop.y
 
         # loop through the hoops 
-        for i, detectedHoop in enumerate(self.hoops):
+        for hoopKey, detectedHoop in self.hoops.items():
 
             # get coordinates of the center of the hoop from the last frame
             x_, y_ = detectedHoop.x, detectedHoop.y
@@ -224,12 +226,13 @@ class Shot_Detector:
 
             # if the euclidian distance of the current detection and the last detection is less than the hypotenuse of the box from the last detection, the current hoop is the same as the current, append the current position to the hoops list of positions
             if distance < distance_:
-                self.hoops[i] = hoop
-                return i
+                self.hoops[hoopKey] = hoop
+                return hoopKey
         
         # hoop not found, create a new list of hoop positions
-        self.hoops.append(hoop)
-        return i+1
+        self.hoops[self.hoopUid] = hoop
+        self.hoopUid += 1
+        return self.hoopUid-1
 
 
 
@@ -328,18 +331,22 @@ class Shot_Detector:
                 continue
 
             # loop through the backboards
-            for hoop in self.hoops:
-                prevDetection = ball.get_last_detection() 
+            for key in self.hoops:
+                hoop = self.hoops[key]
+                prevBallDetection = ball.get_last_detection() 
                 # if the ball is bigger than the hoop, continue
-                if hoop.w*hoop.h < prevDetection.w*prevDetection.h:
+                if hoop.w*hoop.h < prevBallDetection.w*prevBallDetection.h:
                     continue
 
                 # calculate coordinates of the backboard
-                x1, x2, y1, y2 = self.backboard_coordinates(hoop)
+                x1 = int(hoop.x - (hoop.w * 2))
+                x2 = int(x1 + (hoop.w * 4))
+                y1 = int(hoop.y)
+                y2 = int(y1 - (hoop.h * 3))
 
                 # if the ball is in the coordinates of the backboard, store the ball and hoop indices in the up_ball dictionary
-                if x1 < prevDetection.x < x2 and y2 < prevDetection.y < y1:
-                    self.up_ball.append([ball, hoop])
+                if x1 < prevBallDetection.x < x2 and y2 < prevBallDetection.y < y1:
+                    self.up_ball.append([ball, key])
     
 
     def detect_down(self):
@@ -361,14 +368,16 @@ class Shot_Detector:
                 continue
             
             # get the ball and hoop from the current iteration
-            ball, hoop = pair
+            ball, hoopKey = pair
 
-            if ball not in self.balls or hoop not in self.hoops:
+            if ball not in self.balls or hoopKey not in self.hoops:
                 self.up_ball.remove(pair)
                 continue
+
+            hoop = self.hoops[hoopKey]
             
             # find bottom of net
-            y1 = hoop.y + (hoop.h // 2)
+            y1 = int(hoop.y + (hoop.h / 2))
             
             # if the center of the ball is below the bottom of the net, add the ball and hoop to the down_ball list and remove it from the up_ball list.
             if ball.get_last_detection().y > y1:
@@ -386,17 +395,19 @@ class Shot_Detector:
             return
 
         # iterate through down_ball
-        for ball, hoop in deepcopy(self.down_ball):
+        for ball, hoopKey in deepcopy(self.down_ball):
 
-            if ball == None or hoop == None:
-                self.down_ball.remove([ball, hoop])
+            if ball == None or hoopKey == None:
+                self.down_ball.remove([ball, hoopKey])
                 continue
             
-            if ball not in self.balls or hoop not in self.hoops:
-                self.down_ball.remove([ball, hoop])
+            if ball not in self.balls or hoopKey not in self.hoops:
+                self.down_ball.remove([ball, hoopKey])
                 continue
             
             prevDetection = ball.get_last_detection()
+            hoop = self.hoops[hoopKey]
+
             # get the center of the ball at the frame it is detected below the hoop
             x1, y1 = prevDetection.x, prevDetection.y
             x2, y2 = None, None
@@ -413,7 +424,7 @@ class Shot_Detector:
             
             # if the frame it is above the hoop is not found, remove the pair from down_ball and continue
             if x2 == None or y2 == None:
-                self.down_ball.remove([ball, hoop])
+                self.down_ball.remove([ball, hoopKey])
                 continue
             
             '''
@@ -439,7 +450,7 @@ class Shot_Detector:
             
             # increment attempts and remove the pair from down_ball
             self.attempts += 1
-            self.down_ball.remove([ball, hoop])
+            self.down_ball.remove([ball, hoopKey])
     
 
     def clean_pos(self):
@@ -454,30 +465,23 @@ class Shot_Detector:
             if len(ball.detections) > 30:
                 ball.detections.popleft()
         
-        for hoop in deepcopy(self.hoops):
-            if self.frame_count - hoop.frame > 20:
-                self.hoops.remove(hoop)
-    
-
-    def backboard_coordinates(self, hoop):
-        x1 = int(hoop.x - (hoop.w * 2))
-        x2 = int(x1 + (hoop.w * 4))
-        y1 = int(hoop.y + (hoop.h / 2)) 
-        y2 = int(y1 - (hoop.h * 3))
-
-        return x1, x2, y1, y2
+        for hoopKey in deepcopy(self.hoops):
+            if self.frame_count - self.hoops[hoopKey].frame > 20:
+                self.hoops.pop(hoopKey)
+        
 
     def hoop_area(self, pos):
         '''
             Returns if a given ball position is in the area of a hoop.
         '''
 
-        for hoop in self.hoops:
-            x1, x2, y1, y2 = self.backboard_coordinates(hoop)
+        for hoop in self.hoops.values():
+            x1 = int(hoop.x - (hoop.w * 2))
+            x2 = int(x1 + (hoop.w * 4))
+            y1 = int(hoop.y + (hoop.h / 2))
+            y2 = int(y1 - (hoop.h * 3))
 
             if x1 < pos['x'] < x2 and y2 < pos['y'] < y1:
                 return True
 
         return False
-
-Shot_Detector(output_path='../hoopChange', source='/Users/josephattalla/bball_ai/test_videos/IMG_9727.MOV', detection_fps=15).run()
