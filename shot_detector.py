@@ -2,7 +2,8 @@ from ultralytics import YOLO
 import numpy as np
 import cv2
 from copy import deepcopy
-
+from DetectedObject import DetectedObject
+from DetectedBall import DetectedBall
 
 class Shot_Detector:
     '''
@@ -22,7 +23,7 @@ class Shot_Detector:
 
             detection_fps - how many frames to put into the model per second, a lower number results in higher efficiency but lower performance.
 
-            display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (ball_pos or hoop_pos)
+            display_object_info - bool, used to display a detected objects class, confidence, and index in its list of positions (balls or hoop_pos)
     '''
 
     def __init__(self, source, output_path=None, detection_fps=30, display_object_info=True):
@@ -37,7 +38,7 @@ class Shot_Detector:
 
         # lists of each class. Each list contains a list, representing a detected object, with dictionaries representing the positions of that object: {'x' : center[0], 'y' : center[1], 'w' : w, 'h' : h, 'frame' : self.frame_count, 'conf' : conf}
         self.hoop_pos = []
-        self.ball_pos = []
+        self.balls = []
 
         self.frame_count = 0
 
@@ -121,7 +122,7 @@ class Shot_Detector:
                         self.update_score()
                                                 
                         
-                        # displays a detected objects index in its list of positions (ball_pos or hoop_pos)] and its class and conf
+                        # displays a detected objects index in its list of positions (balls or hoop_pos)] and its class and conf
                         if self.display_object_info:
                             font = cv2.FONT_HERSHEY_SIMPLEX
                             text = f"INDEX: {index}, CLASS: {cls_name}, CONF: {conf}"
@@ -169,7 +170,7 @@ class Shot_Detector:
                             y2_ = int(y1_ - (hoop[-1]['h'] * 3))
                             cv2.rectangle(frame, (x1_, y1_), (x2_, y2_), color=(0, 255, 0), thickness=2)'''
 
-                    '''for ball in self.ball_pos:
+                    '''for ball in self.balls:
                         for i in ball:
                             print(i)
                         print()'''
@@ -238,70 +239,73 @@ class Shot_Detector:
                 pos - dictionary of the current ball position: {'x' : center[0], 'y' : center[1], 'w' : w, 'h' : h, 'frame' : self.frame_count, 'conf' : conf}
             
             RETURNS:
-                Index of the detected ball in the ball_pos list. Returns None if not added.
+                Index of the detected ball in the balls list. Returns None if not added.
         '''
 
         # if the confidence of the detection is <0.4 and the detection is not in the area of a hoop with conf>0.3, then it is not a valid detection
         if pos['conf'] < 0.4 and not (self.hoop_area(pos) and pos['conf'] > 0.3):
             return None
 
+        
+        ball = DetectedObject(pos['x'], pos['y'], pos['w'], pos['h'], pos['frame'], pos['conf'])
+
         # if this is the first detected ball, append the current position in a list
-        if len(self.ball_pos) < 1:
-            self.ball_pos.append([pos])
+        if len(self.balls) < 1:
+            self.balls.append(DetectedBall(ball))
             return 0
         
         # get the coordinates of the center of the ball
-        x, y = pos['x'], pos['y']
+        x, y = ball.x, ball.y
         
         # list to hold the ball that this current detection could belong to. Will hold a ball and distance representing the ball that the current detection is closest to
         valid_ball = []
 
-        for i, ball in enumerate(self.ball_pos):   
+        for i, detectedBall in enumerate(self.balls):   
 
             # if the ball has a position already detected in the current frame, continue
             # if ball[-1]['frame'] == self.frame_count:
             #    continue
 
             # get coordinates of the center of the ball from the last frame
-            x_, y_ = ball[-1]['x'], ball[-1]['y']
+            x_, y_ = detectedBall.get_last_detection().x, detectedBall.get_last_detection().y
 
             # calculate the euclidean distance b/w the last frames center, and the current detection
             distance = np.sqrt( ((x_ - x)**2) + ((y_- y)**2) )
 
             # get the width and height of the last frames detection
-            w_, h_ = ball[-1]['w'], ball[-1]['h']
+            w_, h_ = detectedBall.get_last_detection().w, detectedBall.get_last_detection().h
 
             # get the distance of the hypotenuse of the box from the last detection
             distance_ = np.sqrt( (w_**2) + (h_**2) )
 
             # if the euclidian distance of the current detection and the last detection is less than the hypotenuse of the box from the last detection, the current ball is the same as the current, append the current position to the balls list of positions
-            if distance < distance_*2 or (ball in [b[0] for b in self.up_ball] and distance < distance_*4):
+            if distance < distance_*2 or (detectedBall in [b[0] for b in self.up_ball] and distance < distance_*4):
                 
                 # if there is only 1 known ball, this ball must belong to it
-                if len(self.ball_pos) < 2:
-                    ball.append(pos)
+                if len(self.balls) < 2:
+                    detectedBall.add_detection(ball)
                     return i
                 
                 # else if the valid_ball list is empty, make this ball the current closes one to the current detection
                 elif len(valid_ball) == 0:
-                    valid_ball.append(ball)
+                    valid_ball.append(detectedBall)
                     valid_ball.append(distance)
                     idx = i
                 
                 # else if the ball is closer than the previous closes ball, make this ball the closest one
                 elif len(valid_ball) > 0:
                     if distance < valid_ball[1]:
-                        valid_ball[0] = ball
+                        valid_ball[0] = detectedBall
                         valid_ball[1] = distance
                         idx = 1
         
         # if there is a valid ball, append the current position to it
         if len(valid_ball) == 2:
-            valid_ball[0].append(pos)
+            valid_ball[0].add_detection(ball)
             return idx
         
         # ball not found, create a new list of ball positions
-        self.ball_pos.append([pos])
+        self.balls.append(DetectedBall(ball))
         return i
     
 
@@ -311,21 +315,21 @@ class Shot_Detector:
         '''
         
         # if all balls are already detected as up, then there is nothing to check
-        if len(self.up_ball) == len(self.ball_pos):
+        if len(self.up_ball) == len(self.balls):
             return
 
         # loop through the balls
-        for ball in self.ball_pos:
+        for ball in self.balls:
             
             # if the ball is already detected as up or down
-            if ball in [ball_[0] for ball_ in self.up_ball] or ball in [ball_[0] for ball_ in self.down_ball] or len(ball) < 3:
+            if ball in [ball_[0] for ball_ in self.up_ball] or ball in [ball_[0] for ball_ in self.down_ball] or len(ball.detections) < 3:
                 continue
 
             # loop through the backboards
             for hoop in self.hoop_pos:
-                
+                prevDetection = ball.get_last_detection() 
                 # if the ball is bigger than the hoop, continue
-                if hoop[-1]['w']*hoop[-1]['h'] < ball[-1]['w']*ball[-1]['h']:
+                if hoop[-1]['w']*hoop[-1]['h'] < prevDetection.w*prevDetection.h:
                     continue
 
                 # calculate coordinates of the backboard
@@ -335,7 +339,7 @@ class Shot_Detector:
                 y2 = int(y1 - (hoop[-1]['h'] * 3))
 
                 # if the ball is in the coordinates of the backboard, store the ball and hoop indices in the up_ball dictionary
-                if x1 < ball[-1]['x'] < x2 and y2 < ball[-1]['y'] < y1:
+                if x1 < prevDetection.x < x2 and y2 < prevDetection.y < y1:
                     self.up_ball.append([ball, hoop])
     
 
@@ -350,27 +354,27 @@ class Shot_Detector:
 
 
         # iterate through up_ball
-        for i in deepcopy(self.up_ball):
+        for pair in deepcopy(self.up_ball):
             
             # if the [ball, hoop] list is not filled, meaning one was deleted, remove it from up_ball and continue 
-            if len(i) < 2 or None in i:
-                self.up_ball.remove(i)
+            if len(pair) < 2 or None in pair:
+                self.up_ball.remove(pair)
                 continue
             
             # get the ball and hoop from the current iteration
-            ball, hoop = i
+            ball, hoop = pair
 
-            if ball not in self.ball_pos or hoop not in self.hoop_pos:
-                self.up_ball.remove(i)
+            if ball not in self.balls or hoop not in self.hoop_pos:
+                self.up_ball.remove(pair)
                 continue
             
             # find bottom of net
             y1 = int(hoop[-1]['y'] + (hoop[-1]['h'] / 2))
             
             # if the center of the ball is below the bottom of the net, add the ball and hoop to the down_ball list and remove it from the up_ball list.
-            if ball[-1]['y'] > y1:
-                self.down_ball.append(i)
-                self.up_ball.remove(i)
+            if ball.get_last_detection().y > y1:
+                self.down_ball.append(pair)
+                self.up_ball.remove(pair)
 
 
     def update_score(self):
@@ -389,12 +393,13 @@ class Shot_Detector:
                 self.down_ball.remove([ball, hoop])
                 continue
             
-            if ball not in self.ball_pos or hoop not in self.hoop_pos:
+            if ball not in self.balls or hoop not in self.hoop_pos:
                 self.down_ball.remove([ball, hoop])
                 continue
             
+            prevDetection = ball.get_last_detection()
             # get the center of the ball at the frame it is detected below the hoop
-            x1, y1 = ball[-1]['x'], ball[-1]['y']
+            x1, y1 = prevDetection.x, prevDetection.y
             x2, y2 = None, None
 
             # get the center of the hoop, and the top of the hoop
@@ -402,9 +407,9 @@ class Shot_Detector:
             hoop_top = y_hoop - (hoop[-1]['h']/2)
 
             # iterate through the positions of the ball, looking for the frame it is above the hoop
-            for b in reversed(ball):
-                if b['y'] < hoop_top:
-                    x2, y2 = b['x'], b['y']
+            for b in reversed(ball.detections):
+                if b.y < hoop_top:
+                    x2, y2 = b.x, b.y
                     break
             
             # if the frame it is above the hoop is not found, remove the pair from down_ball and continue
@@ -440,15 +445,15 @@ class Shot_Detector:
 
     def clean_pos(self):
         '''
-            Cleans ball_pos and hoop_pos by removing a list in them if the last item in the list is 20+ frames old, and keep each list <30 long.
+            Cleans balls and hoop_pos by removing a list in them if the last item in the list is 20+ frames old, and keep each list <30 long.
         '''
 
-        for ball in deepcopy(self.ball_pos):
-            if self.frame_count - ball[-1]['frame'] > 20:
-                self.ball_pos.remove(ball)
+        for ball in deepcopy(self.balls):
+            if self.frame_count - ball.get_last_detection().frame > 20:
+                self.balls.remove(ball)
             # if storing more than 30 ball positions for the current ball, remove the first
-            if len(ball) > 30:
-                ball.pop(0)
+            if len(ball.detections) > 30:
+                ball.detections.popleft()
         
         for hoop in deepcopy(self.hoop_pos):
             if self.frame_count - hoop[-1]['frame'] > 20:
@@ -473,3 +478,5 @@ class Shot_Detector:
                 return True
 
         return False
+
+Shot_Detector(output_path='../testChange', source='/Users/josephattalla/bball_ai/test_videos/IMG_9727.MOV', detection_fps=15).run()
